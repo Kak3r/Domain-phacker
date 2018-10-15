@@ -7,6 +7,8 @@ import matplotlib.pyplot as plt
 import parse
 import EB_checker
 import os 
+import threading
+import multiprocessing
 
 #default Passwords hash
 DEFAULT_PASSWORDS = {"47bf8039a8506cd67c524a03ff84ba4e":"Aa123456","67587a19e4c2b479f1fa85b95b544229":"Bb123456"}
@@ -64,7 +66,6 @@ def exec_get_users_from_group(groups,Password,dc):
 	subprocess.call(AD_search_call,shell=True)
 
 
-
 def get_strong_users():
 # TODO!!!!!!!!!!!!!!!!!!!!
 	admin_groups = parse.get_admin_groups()
@@ -74,8 +75,6 @@ def get_domain_admins():
 
 
 def find_strong_users_with_weak_password(strong_users,ntds_file,shared_passwords):
-	#print "*"*50
-	#print strong_users
 	file_path = "output/" + ntds_file + ".ntds"
 	show_top = 5 
 	most_common_passwords = dict(shared_passwords.most_common(show_top)).keys()	
@@ -86,12 +85,8 @@ def find_strong_users_with_weak_password(strong_users,ntds_file,shared_passwords
 			while line:
 				try:
 					user = line.split(":")[0].split("\\")[1]
-					#print "*"*50
-					#print user
 				except:
 					user = line.split(":")[0]
-					#print "A"*50
-					#print user
 				if(user in strong_users):
 					if line.split(":")[3] in most_common_passwords:
 						users_with_weak_password[user] = line.split(":")[3]
@@ -100,16 +95,36 @@ def find_strong_users_with_weak_password(strong_users,ntds_file,shared_passwords
 			pass	
 	return users_with_weak_password
 
-def check_for_EB(ip_list):
-	#####NEED TO ADD threads####################
-	vuln_machines = []
+def get_tragets(ip_list):
+	targets = []
 	with open(ip_list , 'r') as file:
 		target = file.readline()
 		while target:
-				if(EB_checker.checker(target)):
-					vuln_machines.append(target)
+				targets.append(target.split('\n')[0])
 				target = file.readline()
+	return targets
+
+
+def call_eb_checker(target):
+	if(EB_checker.checker(target)):
+			return(target)
+
+def check_for_EB(targets):
+	#####NEED TO ADD threads####################
+	print targets
+	vuln_machines = []
+	p = multiprocessing.Pool(processes = 4)
+	vuln_machines = p.map(call_eb_checker,targets)
+	vuln_machines = filter(lambda x: x is not None, vuln_machines)
 	return vuln_machines
+
+
+def get_update_policy(ip_list):
+
+	update_policy = {}
+
+	return update_policy
+
 
 
 def output_file(output_name,domain_admins,DA_with_weak_passwords,shared_passwords,vuln_machines):
@@ -154,11 +169,13 @@ if __name__ == '__main__':
 	exec_get_groups_and_DA(arguments['<User>'],arguments['<Password>'],arguments['<DC>'])
 	domain_admins = get_domain_admins()
 	DA_with_weak_passwords = find_strong_users_with_weak_password(domain_admins,arguments['<outputfile>'],shared_passwords)
-	vuln_machines = check_for_EB(arguments['<IP_list>'])
+	
+	targets = get_tragets(arguments['<IP_list>'])
+	vuln_machines = check_for_EB(targets)
 
 
 	output_file(arguments['<outputfile>'],domain_admins, DA_with_weak_passwords,shared_passwords,vuln_machines)
 
-
-	#strong_users = get_strong_users()
+	#TODO!!!
+	#strong_users = get_strong_users() 
 	#find_strong_users_with_weak_password(strong_users)

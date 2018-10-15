@@ -1,0 +1,10 @@
+docopt==0.6.2
+matplotlib==2.0.0
+numpy==1.13.3
+pycrypto==2.6.1
+python_ldap==3.1.0
+pyasn1>=0.2.3
+pyOpenSSL>=0.16.2
+ldap3>=2.5
+ldapdomaindump
+flask
